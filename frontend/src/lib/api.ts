@@ -20,17 +20,25 @@ const getAuthHeaders = () => {
 };
 
 const apiFetch = async <T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> => {
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers: {
-      ...getAuthHeaders(),
-      ...(options?.headers || {}),
-    },
-  });
-  return response.json() as Promise<ApiResponse<T>>;
+  console.log('API请求:', `${API_BASE_URL}${url}`, options);
+  try {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      ...options,
+      headers: {
+        ...getAuthHeaders(),
+        ...(options?.headers || {}),
+      },
+    });
+    console.log('API响应状态:', response.status);
+    const data = await response.json();
+    console.log('API响应数据:', data);
+    return data as ApiResponse<T>;
+  } catch (error) {
+    console.error('API错误:', error);
+    throw error;
+  }
 };
 
-// Auth
 export const authApi = {
   login: (email: string, password: string) =>
     apiFetch<{ token: string; user: { id: string; name: string; email: string } }>('/api/auth/login', {
@@ -48,7 +56,6 @@ export const authApi = {
     apiFetch<{ user: { id: string; name: string; email: string } }>('/api/auth/me'),
 };
 
-// Budgets
 export const budgetApi = {
   getCurrent: () =>
     apiFetch<DashboardData | null>('/api/budgets/current'),
@@ -72,7 +79,6 @@ export const budgetApi = {
     } | null>(`/api/budgets/${year}/${month}/summary`),
 };
 
-// Expenses
 export const expenseApi = {
   getAll: (limit?: number) =>
     apiFetch<Expense[]>(`/api/expenses${limit ? `?limit=${limit}` : ''}`),
@@ -87,7 +93,6 @@ export const expenseApi = {
     apiFetch<{ message: string }>(`/api/expenses/${id}`, { method: 'DELETE' }),
 };
 
-// Savings
 export const savingsApi = {
   getAll: () =>
     apiFetch<SavingsRecord[]>('/api/savings'),
@@ -99,7 +104,6 @@ export const savingsApi = {
     }),
 };
 
-// Emergency Fund
 export const emergencyFundApi = {
   getInfo: () =>
     apiFetch<{ id: string; targetAmount: string; hasPassword: boolean; createdAt: string }>('/api/emergency-fund'),

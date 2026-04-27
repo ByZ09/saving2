@@ -3,6 +3,7 @@ import { monthlyBudgets, expenses, savingsRecords, insertMonthlyBudgetSchema } f
 import type { InsertMonthlyBudget } from '../db/schema';
 import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 type CreateBudgetInput = z.infer<typeof insertMonthlyBudgetSchema>;
 
@@ -32,7 +33,10 @@ export class BudgetRepository {
   async create(data: CreateBudgetInput) {
     const [budget] = await db
       .insert(monthlyBudgets)
-      .values(data as InsertMonthlyBudget)
+      .values({
+        ...data as InsertMonthlyBudget,
+        id: crypto.randomUUID(),
+      })
       .returning();
     return budget;
   }
@@ -40,7 +44,7 @@ export class BudgetRepository {
   async update(id: string, data: Partial<CreateBudgetInput>) {
     const [budget] = await db
       .update(monthlyBudgets)
-      .set({ ...data as Partial<InsertMonthlyBudget>, updatedAt: new Date() })
+      .set({ ...data as Partial<InsertMonthlyBudget>, updatedAt: Math.floor(Date.now() / 1000) })
       .where(eq(monthlyBudgets.id, id))
       .returning();
     return budget;
@@ -74,8 +78,8 @@ export class BudgetRepository {
       .where(
         and(
           eq(expenses.userId, userId),
-          gte(expenses.expenseDate, startOfDay),
-          lte(expenses.expenseDate, endOfDay)
+          gte(expenses.expenseDate, Math.floor(startOfDay.getTime() / 1000)),
+          lte(expenses.expenseDate, Math.floor(endOfDay.getTime() / 1000))
         )
       );
     return parseFloat(result[0]?.total || '0');

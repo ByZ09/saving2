@@ -3,6 +3,7 @@ import { savingsRecords, insertSavingsRecordSchema } from '../db/schema';
 import type { InsertSavingsRecord } from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 type CreateSavingsInput = z.infer<typeof insertSavingsRecordSchema>;
 
@@ -10,7 +11,10 @@ export class SavingsRepository {
   async create(data: CreateSavingsInput) {
     const [record] = await db
       .insert(savingsRecords)
-      .values(data as InsertSavingsRecord)
+      .values({
+        ...data as InsertSavingsRecord,
+        id: crypto.randomUUID(),
+      })
       .returning();
     return record;
   }

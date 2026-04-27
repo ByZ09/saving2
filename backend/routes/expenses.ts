@@ -7,7 +7,6 @@ import { AppError } from '../middleware/errorHandler';
 
 const router = Router();
 
-// Get expenses
 router.get('/', authenticateJWT, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
@@ -19,7 +18,6 @@ router.get('/', authenticateJWT, async (req: AuthRequest, res: Response, next: N
   }
 });
 
-// Create expense and auto-save remaining daily allowance
 router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
@@ -42,7 +40,7 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
       amount: expenseAmount.toFixed(2),
       category: category as 'food' | 'shopping' | 'transport' | 'entertainment' | 'study' | 'other',
       note: note || null,
-      expenseDate: now,
+      expenseDate: Math.floor(now.getTime() / 1000),
     });
 
     let savingsRecord = null;
@@ -57,7 +55,7 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
           amount: remaining.toFixed(2),
           type: 'auto',
           note: '今日节省自动存入',
-          recordDate: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59),
+          recordDate: Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime() / 1000),
         });
       }
     }
@@ -68,7 +66,6 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
   }
 });
 
-// Delete expense
 router.delete('/:id', authenticateJWT, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;

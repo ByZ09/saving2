@@ -9,7 +9,6 @@ import { authenticateLocal, authenticateJWT, AuthRequest } from '../middleware/a
 const router = Router();
 const userRepo = new UserRepository();
 
-// Signup route
 const signupHandler = async (
   req: Request,
   res: Response,
@@ -44,7 +43,6 @@ const signupHandler = async (
   }
 };
 
-// Login route
 const loginHandler = (req: Request, res: Response) => {
   const user = (req as AuthRequest).user!;
   const token = generateToken(user);
@@ -59,7 +57,6 @@ const loginHandler = (req: Request, res: Response) => {
   });
 };
 
-// Get current user
 const getCurrentUser = (req: Request, res: Response) => {
   const user = (req as AuthRequest).user!;
   res.json({
@@ -70,7 +67,6 @@ const getCurrentUser = (req: Request, res: Response) => {
   });
 };
 
-// Helper functions
 const generateToken = (user: any) => {
   const jwtSecret = JWT_CONFIG.SECRET || JWT_CONFIG.FALLBACK_SECRET;
   return jwt.sign({ userId: user.id, email: user.email }, jwtSecret, {
@@ -84,7 +80,6 @@ const sanitizeUser = (user: any) => ({
   name: user.name,
 });
 
-// Routes
 router.post('/signup', signupHandler);
 router.post('/login', authenticateLocal, loginHandler);
 router.get('/me', authenticateJWT, getCurrentUser);

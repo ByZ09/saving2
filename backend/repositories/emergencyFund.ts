@@ -3,6 +3,7 @@ import { emergencyFund, emergencyFundTransactions, users } from '../db/schema';
 import type { InsertEmergencyFund, InsertEmergencyFundTransaction } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 export class EmergencyFundRepository {
   async findOrCreateByUser(userId: string) {
@@ -14,7 +15,12 @@ export class EmergencyFundRepository {
     if (!fund) {
       [fund] = await db
         .insert(emergencyFund)
-        .values({ userId, balance: '0', targetAmount: '1000' } as InsertEmergencyFund)
+        .values({
+          id: crypto.randomUUID(),
+          userId,
+          balance: 0,
+          targetAmount: 1000
+        } as InsertEmergencyFund)
         .returning();
     }
     return fund;
@@ -23,7 +29,7 @@ export class EmergencyFundRepository {
   async updateBalance(userId: string, newBalance: string) {
     const [fund] = await db
       .update(emergencyFund)
-      .set({ balance: newBalance, updatedAt: new Date() })
+      .set({ balance: parseFloat(newBalance), updatedAt: Math.floor(Date.now() / 1000) })
       .where(eq(emergencyFund.userId, userId))
       .returning();
     return fund;
@@ -32,7 +38,7 @@ export class EmergencyFundRepository {
   async updateTarget(userId: string, targetAmount: string) {
     const [fund] = await db
       .update(emergencyFund)
-      .set({ targetAmount, updatedAt: new Date() })
+      .set({ targetAmount: parseFloat(targetAmount), updatedAt: Math.floor(Date.now() / 1000) })
       .where(eq(emergencyFund.userId, userId))
       .returning();
     return fund;
@@ -41,7 +47,10 @@ export class EmergencyFundRepository {
   async addTransaction(data: InsertEmergencyFundTransaction) {
     const [tx] = await db
       .insert(emergencyFundTransactions)
-      .values(data)
+      .values({
+        ...data,
+        id: crypto.randomUUID(),
+      })
       .returning();
     return tx;
   }
@@ -59,7 +68,11 @@ export class EmergencyFundRepository {
     const hashed = await bcrypt.hash(password, 12);
     await db
       .update(users)
-      .set({ emergencyFundPassword: hashed, emergencyFundFailedAttempts: 0, emergencyFundLockUntil: null })
+      .set({ 
+        emergencyFundPassword: hashed, 
+        emergencyFundFailedAttempts: 0, 
+        emergencyFundLockUntil: null 
+      })
       .where(eq(users.id, userId));
   }
 
@@ -68,7 +81,7 @@ export class EmergencyFundRepository {
     if (!user) return { success: false, locked: false, remainingAttempts: 0 };
 
     // Check lock
-    if (user.emergencyFundLockUntil && new Date() < user.emergencyFundLockUntil) {
+    if (user.emergencyFundLockUntil && Math.floor(Date.now() / 1000) < user.emergencyFundLockUntil) {
       return { success: false, locked: true, remainingAttempts: 0 };
     }
 
@@ -84,7 +97,7 @@ export class EmergencyFundRepository {
       return { success: true, locked: false, remainingAttempts: 5 };
     } else {
       const newAttempts = (user.emergencyFundFailedAttempts || 0) + 1;
-      const lockUntil = newAttempts >= 5 ? new Date(Date.now() + 10 * 60 * 1000) : null;
+      const lockUntil = newAttempts >= 5 ? Math.floor(Date.now() / 1000) + 10 * 60 : null;
       await db.update(users).set({ emergencyFundFailedAttempts: newAttempts, emergencyFundLockUntil: lockUntil }).where(eq(users.id, userId));
       return { success: false, locked: newAttempts >= 5, remainingAttempts: Math.max(0, 5 - newAttempts) };
     }

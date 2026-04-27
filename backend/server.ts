@@ -11,76 +11,89 @@ import emergencyFundRoutes from './routes/emergencyFund';
 
 import { SERVER_CONFIG } from './config/constants';
 import { errorHandler } from './middleware/errorHandler';
+import { initDb } from './db';
 import './config/passport';
 
 const app = express();
 
-/**
- * Body Parsers
- */
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+async function startServer() {
+  try {
+    await initDb();
+    console.log('Database initialized');
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    process.exit(1);
+  }
 
-/**
- * Passport
- */
-app.use(passport.initialize());
+  /**
+   * Body Parsers
+   */
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
-/**
- * Static Files
- */
-const REACT_BUILD_FOLDER = path.join(__dirname, '..', 'frontend', 'dist');
-app.use(
-  express.static(REACT_BUILD_FOLDER, {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-      }
-    },
-  })
-);
+  /**
+   * Passport
+   */
+  app.use(passport.initialize());
 
-app.use(
-  '/assets',
-  express.static(path.join(REACT_BUILD_FOLDER, 'assets'), {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-      }
-    },
-  })
-);
+  /**
+   * Static Files
+   */
+  const REACT_BUILD_FOLDER = path.join(__dirname, '..', 'frontend', 'dist');
+  app.use(
+    express.static(REACT_BUILD_FOLDER, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      },
+    })
+  );
 
-/**
- * API Routes
- */
-app.use('/api/auth', authRoutes);
-app.use('/api/budgets', budgetRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/savings', savingsRoutes);
-app.use('/api/emergency-fund', emergencyFundRoutes);
+  app.use(
+    '/assets',
+    express.static(path.join(REACT_BUILD_FOLDER, 'assets'), {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      },
+    })
+  );
 
-/**
- * SPA Fallback Route
- */
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(REACT_BUILD_FOLDER, 'index.html'));
-});
+  /**
+   * API Routes
+   */
+  app.use('/api/auth', authRoutes);
+  app.use('/api/budgets', budgetRoutes);
+  app.use('/api/expenses', expenseRoutes);
+  app.use('/api/savings', savingsRoutes);
+  app.use('/api/emergency-fund', emergencyFundRoutes);
 
-/**
- * Error Handler
- */
-app.use(errorHandler as ErrorRequestHandler);
+  /**
+   * SPA Fallback Route
+   */
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(REACT_BUILD_FOLDER, 'index.html'));
+  });
 
-/**
- * Start Server
- */
-app.listen(SERVER_CONFIG.PORT, () => {
-  console.log(`Server ready on port ${SERVER_CONFIG.PORT}`);
-});
+  /**
+   * Error Handler
+   */
+  app.use(errorHandler as ErrorRequestHandler);
+
+  /**
+   * Start Server
+   */
+  app.listen(SERVER_CONFIG.PORT, '0.0.0.0', () => {
+    console.log(`Server ready on port ${SERVER_CONFIG.PORT}`);
+  });
+}
+
+startServer();
 
 export default app;

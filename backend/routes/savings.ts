@@ -6,7 +6,6 @@ import { AppError } from '../middleware/errorHandler';
 
 const router = Router();
 
-// Get savings records
 router.get('/', authenticateJWT, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
@@ -17,7 +16,6 @@ router.get('/', authenticateJWT, async (req: AuthRequest, res: Response, next: N
   }
 });
 
-// Manually add savings
 router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
@@ -35,7 +33,7 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
       amount: savingsAmount.toFixed(2),
       type: 'manual',
       note: note || null,
-      recordDate: now,
+      recordDate: Math.floor(now.getTime() / 1000),
     });
 
     res.json({ success: true, data: record });

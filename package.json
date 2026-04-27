@@ -47,6 +47,7 @@
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "postgres": "^3.4.5",
+    "sql.js": "^1.10.3",
     "stripe": "^19.1.0",
     "zod": "^3.24.4"
   },

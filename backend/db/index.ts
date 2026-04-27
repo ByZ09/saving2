@@ -1,23 +1,41 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/sql-js';
+import initSqlJs from 'sql.js';
 import { config } from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
-// Ensure environment variables are loaded
 config();
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    'DATABASE_URL is required. Current env keys: ' +
-      Object.keys(process.env).join(', ')
-  );
+const dbPath = path.join(__dirname, '..', 'saving.db');
+
+let db;
+
+async function initDb() {
+  const SQL = await initSqlJs();
+  let sqlite;
+  
+  if (fs.existsSync(dbPath)) {
+    const fileBuffer = fs.readFileSync(dbPath);
+    sqlite = new SQL.Database(fileBuffer);
+  } else {
+    sqlite = new SQL.Database();
+    
+    const migrationPath = path.join(__dirname, 'migrations', 'init.sql');
+    if (fs.existsSync(migrationPath)) {
+      const sql = fs.readFileSync(migrationPath, 'utf8');
+      sqlite.run(sql);
+      console.log('Database migrated successfully');
+      
+      const data = sqlite.export();
+      const buffer = Buffer.from(data);
+      fs.writeFileSync(dbPath, buffer);
+    } else {
+      console.warn('Migration file not found');
+    }
+  }
+  
+  db = drizzle(sqlite);
+  return db;
 }
 
-// Database connection with connection pooling
-const client = postgres(process.env.DATABASE_URL, {
-  ssl: { rejectUnauthorized: false },
-  max: 10, // Set pool size
-  idle_timeout: 20, // Idle connection timeout in seconds
-  connect_timeout: 10, // Connection timeout in seconds
-});
-
-export const db = drizzle(client);
+export { db, initDb };

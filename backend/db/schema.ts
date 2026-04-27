@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, numeric } from 'drizzle-orm/pg-core';
+import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
@@ -6,25 +6,28 @@ import { z } from 'zod';
 // ============================================
 // Users Table
 // ============================================
-export const users = pgTable('Users', {
+export const users = sqliteTable('Users', {
   id: text('id')
     .primaryKey()
-    .default(sql`gen_random_uuid()`)
     .notNull(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
   emergencyFundPassword: text('emergency_fund_password'),
-  emergencyFundLockUntil: timestamp('emergency_fund_lock_until'),
+  emergencyFundLockUntil: integer('emergency_fund_lock_until'),
   emergencyFundFailedAttempts: integer('emergency_fund_failed_attempts').default(0).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
 });
 
 export const insertUserSchema = createInsertSchema(users, {
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const updateUserSchema = insertUserSchema.partial();
@@ -51,20 +54,19 @@ export type SignupUserInput = z.infer<typeof signupUserSchema>;
 // ============================================
 // Monthly Budgets Table
 // ============================================
-export const monthlyBudgets = pgTable('MonthlyBudgets', {
+export const monthlyBudgets = sqliteTable('MonthlyBudgets', {
   id: text('id')
     .primaryKey()
-    .default(sql`gen_random_uuid()`)
     .notNull(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   year: integer('year').notNull(),
   month: integer('month').notNull(),
-  totalIncome: numeric('total_income', { precision: 10, scale: 2 }).notNull(),
-  savingsGoal: numeric('savings_goal', { precision: 10, scale: 2 }).notNull(),
-  availableBudget: numeric('available_budget', { precision: 10, scale: 2 }).notNull(),
-  dailyAllowance: numeric('daily_allowance', { precision: 10, scale: 2 }).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  totalIncome: real('total_income').notNull(),
+  savingsGoal: real('savings_goal').notNull(),
+  availableBudget: real('available_budget').notNull(),
+  dailyAllowance: real('daily_allowance').notNull(),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
 });
 
 export const insertMonthlyBudgetSchema = createInsertSchema(monthlyBudgets, {
@@ -75,6 +77,10 @@ export const insertMonthlyBudgetSchema = createInsertSchema(monthlyBudgets, {
   dailyAllowance: z.coerce.string(),
   year: z.coerce.number().int().positive(),
   month: z.coerce.number().int().min(1).max(12),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const updateMonthlyBudgetSchema = insertMonthlyBudgetSchema.partial();
@@ -85,18 +91,17 @@ export type InsertMonthlyBudget = typeof monthlyBudgets.$inferInsert;
 // ============================================
 // Expenses Table
 // ============================================
-export const expenses = pgTable('Expenses', {
+export const expenses = sqliteTable('Expenses', {
   id: text('id')
     .primaryKey()
-    .default(sql`gen_random_uuid()`)
     .notNull(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   budgetId: text('budget_id').references(() => monthlyBudgets.id, { onDelete: 'set null' }),
-  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  amount: real('amount').notNull(),
   category: text('category').notNull(),
   note: text('note'),
-  expenseDate: timestamp('expense_date').defaultNow().notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expenseDate: integer('expense_date').notNull().default(sql`(unixepoch())`),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
 });
 
 export const insertExpenseSchema = createInsertSchema(expenses, {
@@ -106,6 +111,9 @@ export const insertExpenseSchema = createInsertSchema(expenses, {
   category: z.enum(['food', 'shopping', 'transport', 'entertainment', 'study', 'other']),
   note: z.string().nullable().optional(),
   expenseDate: z.date().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const updateExpenseSchema = insertExpenseSchema.partial();
@@ -116,18 +124,17 @@ export type InsertExpense = typeof expenses.$inferInsert;
 // ============================================
 // Savings Records Table
 // ============================================
-export const savingsRecords = pgTable('SavingsRecords', {
+export const savingsRecords = sqliteTable('SavingsRecords', {
   id: text('id')
     .primaryKey()
-    .default(sql`gen_random_uuid()`)
     .notNull(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   budgetId: text('budget_id').references(() => monthlyBudgets.id, { onDelete: 'set null' }),
-  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  amount: real('amount').notNull(),
   type: text('type').notNull().default('auto'),
   note: text('note'),
-  recordDate: timestamp('record_date').defaultNow().notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  recordDate: integer('record_date').notNull().default(sql`(unixepoch())`),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
 });
 
 export const insertSavingsRecordSchema = createInsertSchema(savingsRecords, {
@@ -137,6 +144,9 @@ export const insertSavingsRecordSchema = createInsertSchema(savingsRecords, {
   type: z.enum(['auto', 'manual']).optional(),
   note: z.string().nullable().optional(),
   recordDate: z.date().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
 });
 
 export type SavingsRecord = typeof savingsRecords.$inferSelect;
@@ -145,21 +155,24 @@ export type InsertSavingsRecord = typeof savingsRecords.$inferInsert;
 // ============================================
 // Emergency Fund Table
 // ============================================
-export const emergencyFund = pgTable('EmergencyFund', {
+export const emergencyFund = sqliteTable('EmergencyFund', {
   id: text('id')
     .primaryKey()
-    .default(sql`gen_random_uuid()`)
     .notNull(),
   userId: text('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
-  balance: numeric('balance', { precision: 10, scale: 2 }).notNull().default('0'),
-  targetAmount: numeric('target_amount', { precision: 10, scale: 2 }).notNull().default('1000'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  balance: real('balance').notNull().default(0),
+  targetAmount: real('target_amount').notNull().default(1000),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
 });
 
 export const insertEmergencyFundSchema = createInsertSchema(emergencyFund, {
   balance: z.coerce.string().optional(),
   targetAmount: z.coerce.string().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export type EmergencyFund = typeof emergencyFund.$inferSelect;
@@ -168,22 +181,24 @@ export type InsertEmergencyFund = typeof emergencyFund.$inferInsert;
 // ============================================
 // Emergency Fund Transactions Table
 // ============================================
-export const emergencyFundTransactions = pgTable('EmergencyFundTransactions', {
+export const emergencyFundTransactions = sqliteTable('EmergencyFundTransactions', {
   id: text('id')
     .primaryKey()
-    .default(sql`gen_random_uuid()`)
     .notNull(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  amount: real('amount').notNull(),
   type: text('type').notNull(),
   reason: text('reason'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
 });
 
 export const insertEmergencyFundTransactionSchema = createInsertSchema(emergencyFundTransactions, {
   amount: z.coerce.string(),
   type: z.enum(['deposit', 'withdraw']),
   reason: z.string().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
 });
 
 export type EmergencyFundTransaction = typeof emergencyFundTransactions.$inferSelect;
@@ -192,10 +207,9 @@ export type InsertEmergencyFundTransaction = typeof emergencyFundTransactions.$i
 // ============================================
 // Uploads Table
 // ============================================
-export const uploads = pgTable('Uploads', {
+export const uploads = sqliteTable('Uploads', {
   id: text('id')
     .primaryKey()
-    .default(sql`gen_random_uuid()`)
     .notNull(),
   fileName: text('file_name').notNull(),
   fileSize: integer('file_size').notNull(),
@@ -204,8 +218,8 @@ export const uploads = pgTable('Uploads', {
   s3Url: text('s3_url').notNull(),
   uploadId: text('upload_id'),
   status: text('status').notNull().default('pending'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  createdAt: integer('created_at').notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at').notNull().default(sql`(unixepoch())`),
 });
 
 export const insertUploadSchema = createInsertSchema(uploads, {
@@ -216,6 +230,10 @@ export const insertUploadSchema = createInsertSchema(uploads, {
   s3Url: z.string().url('Invalid S3 URL'),
   uploadId: z.string().optional(),
   status: z.enum(['pending', 'uploading', 'completed', 'failed']).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const updateUploadSchema = insertUploadSchema.partial();

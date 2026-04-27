@@ -12,6 +12,7 @@ const Signup = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated === true) {
@@ -35,15 +36,22 @@ const Signup = () => {
     }
     setLoading(true);
     try {
+      console.log('开始注册，发送请求...');
+      console.log('请求数据:', { name, email, password, confirmPassword });
       const res = await authApi.signup(name, email, password, confirmPassword);
+      console.log('注册响应:', res);
       if (res.success && res.data?.token) {
         login(res.data.token);
-        toast.success('注册成功！欢迎加入智能存錢 🎉');
-        navigate('/', { replace: true });
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          navigate('/', { replace: true });
+        }, 2000);
       } else {
         toast.error(res.message || '注册失败，请重试');
       }
-    } catch {
+    } catch (error) {
+      console.error('注册错误:', error);
       toast.error('注册失败，请稍后重试');
     } finally {
       setLoading(false);
@@ -52,8 +60,23 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl max-w-md mx-4 animate-bounce-in">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="font-heading font-bold text-2xl text-foreground mb-2">注册成功！</h2>
+              <p className="text-muted-foreground mb-4">欢迎加入智能存钱 🎉</p>
+              <p className="text-sm text-muted-foreground">正在跳转到首页...</p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary shadow-lg mb-4">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +87,6 @@ const Signup = () => {
           <p className="text-muted-foreground text-sm mt-1">开始你的存钱之旅</p>
         </div>
 
-        {/* Card */}
         <div className="bg-card border border-border rounded-2xl p-8 shadow-lg">
           <h2 className="font-heading font-semibold text-xl text-foreground mb-6">创建账户</h2>
           <form onSubmit={handleSubmit} className="space-y-4">

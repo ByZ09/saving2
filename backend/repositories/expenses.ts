@@ -3,6 +3,7 @@ import { expenses, insertExpenseSchema } from '../db/schema';
 import type { InsertExpense } from '../db/schema';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 type CreateExpenseInput = z.infer<typeof insertExpenseSchema>;
 
@@ -10,7 +11,10 @@ export class ExpenseRepository {
   async create(data: CreateExpenseInput) {
     const [expense] = await db
       .insert(expenses)
-      .values(data as InsertExpense)
+      .values({
+        ...data as InsertExpense,
+        id: crypto.randomUUID(),
+      })
       .returning();
     return expense;
   }
@@ -39,8 +43,8 @@ export class ExpenseRepository {
       .where(
         and(
           eq(expenses.userId, userId),
-          gte(expenses.expenseDate, startDate),
-          lte(expenses.expenseDate, endDate)
+          gte(expenses.expenseDate, Math.floor(startDate.getTime() / 1000)),
+          lte(expenses.expenseDate, Math.floor(endDate.getTime() / 1000))
         )
       )
       .orderBy(desc(expenses.expenseDate));

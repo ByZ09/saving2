@@ -4,6 +4,9 @@ import { expenseRepository } from '../repositories/expenses';
 import { savingsRepository } from '../repositories/savings';
 import { budgetRepository } from '../repositories/budgets';
 import { AppError } from '../middleware/errorHandler';
+import { db } from '../db';
+import { reminderSettings, reminderNotifications } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 const router = Router();
 
@@ -34,6 +37,17 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
     const budget = await budgetRepository.findByUserAndMonth(userId, year, month);
     if (!budget) throw new AppError('No budget set for this month. Please set up your monthly budget first.', 400);
 
+    // 检查本月支出是否会超出预算
+    const monthlyExpenses = await budgetRepository.getMonthlyExpenseTotal(userId, budget.id);
+    const availableBudget = parseFloat(budget.availableBudget);
+    const willExceedBudget = monthlyExpenses + expenseAmount > availableBudget;
+
+    // 获取提醒设置
+    const settingsResult = await db.select().from(reminderSettings).where(eq(reminderSettings.userId, userId));
+    const settings = settingsResult[0];
+    const budgetExceedReminderEnabled = settings?.budgetExceedReminder === 1;
+
+    // 创建支出记录
     const expense = await expenseRepository.create({
       userId,
       budgetId: budget.id,
@@ -42,6 +56,21 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
       note: note || null,
       expenseDate: Math.floor(now.getTime() / 1000),
     });
+
+    // 如果超预算且开启了提醒，创建通知
+    let exceededBudget = false;
+    if (willExceedBudget && budgetExceedReminderEnabled) {
+      exceededBudget = true;
+      const overBudgetAmount = (monthlyExpenses + expenseAmount - availableBudget).toFixed(2);
+      await db.insert(reminderNotifications).values({
+        id: crypto.randomUUID(),
+        userId,
+        type: 'budget_exceed',
+        message: `本月预算已超支 ¥${overBudgetAmount}，请注意控制支出！`,
+        read: 0,
+        createdAt: Math.floor(now.getTime() / 1000),
+      });
+    }
 
     let savingsRecord = null;
     if (autoSaveRemaining) {
@@ -60,7 +89,7 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
       }
     }
 
-    res.json({ success: true, data: { expense, savingsRecord } });
+    res.json({ success: true, data: { expense, savingsRecord, exceededBudget } });
   } catch (error) {
     next(error);
   }

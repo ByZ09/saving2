@@ -125,9 +125,13 @@ router.get('/:year/:month/summary', authenticateJWT, async (req: AuthRequest, re
     const categoryBreakdown = await budgetRepository.getCategoryBreakdown(userId, budget.id);
     const dailyTrend = await budgetRepository.getDailyTrend(userId, budget.id);
 
+    // 检查是否超预算
+    const availableBudget = parseFloat(budget.availableBudget);
+    const exceededBudget = totalExpenses > availableBudget;
+
     res.json({
       success: true,
-      data: { budget, totalExpenses, totalSavings, categoryBreakdown, dailyTrend },
+      data: { budget, totalExpenses, totalSavings, categoryBreakdown, dailyTrend, exceededBudget },
     });
   } catch (error) {
     next(error);

@@ -8,7 +8,7 @@ const Signup = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ const Signup = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !phone || !password || !confirmPassword) {
       toast.error('请填写所有必填项');
       return;
     }
@@ -37,8 +37,8 @@ const Signup = () => {
     setLoading(true);
     try {
       console.log('开始注册，发送请求...');
-      console.log('请求数据:', { name, email, password, confirmPassword });
-      const res = await authApi.signup(name, email, password, confirmPassword);
+      console.log('请求数据:', { name, phone, password, confirmPassword });
+      const res = await authApi.signup(name, phone, password, confirmPassword);
       console.log('注册响应:', res);
       if (res.success && res.data?.token) {
         login(res.data.token);
@@ -102,13 +102,13 @@ const Signup = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">邮箱地址</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">手机号码</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                autoComplete="email"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="13800138000"
+                autoComplete="tel"
                 className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
               />
             </div>

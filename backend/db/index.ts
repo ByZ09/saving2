@@ -17,6 +17,26 @@ async function initDb() {
   if (fs.existsSync(dbPath)) {
     const fileBuffer = fs.readFileSync(dbPath);
     sqlite = new SQL.Database(fileBuffer);
+    
+    // 运行额外的迁移
+    const passwordResetMigrationPath = path.join(__dirname, 'migrations', 'add_password_reset.sql');
+    if (fs.existsSync(passwordResetMigrationPath)) {
+      const sql = fs.readFileSync(passwordResetMigrationPath, 'utf8');
+      sqlite.run(sql);
+      console.log('Password reset migration applied');
+    }
+    
+    // 运行提醒迁移
+    const remindersMigrationPath = path.join(__dirname, 'migrations', 'add_reminders.sql');
+    if (fs.existsSync(remindersMigrationPath)) {
+      const remindersSql = fs.readFileSync(remindersMigrationPath, 'utf8');
+      sqlite.run(remindersSql);
+      console.log('Reminders migration applied');
+    }
+    
+    const data = sqlite.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(dbPath, buffer);
   } else {
     sqlite = new SQL.Database();
     
@@ -25,6 +45,22 @@ async function initDb() {
       const sql = fs.readFileSync(migrationPath, 'utf8');
       sqlite.run(sql);
       console.log('Database migrated successfully');
+      
+      // 运行密码重置迁移
+      const passwordResetMigrationPath = path.join(__dirname, 'migrations', 'add_password_reset.sql');
+      if (fs.existsSync(passwordResetMigrationPath)) {
+        const passwordResetSql = fs.readFileSync(passwordResetMigrationPath, 'utf8');
+        sqlite.run(passwordResetSql);
+        console.log('Password reset migration applied');
+      }
+      
+      // 运行提醒迁移
+      const remindersMigrationPath = path.join(__dirname, 'migrations', 'add_reminders.sql');
+      if (fs.existsSync(remindersMigrationPath)) {
+        const remindersSql = fs.readFileSync(remindersMigrationPath, 'utf8');
+        sqlite.run(remindersSql);
+        console.log('Reminders migration applied');
+      }
       
       const data = sqlite.export();
       const buffer = Buffer.from(data);

@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS Users (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
+  phone TEXT NOT NULL UNIQUE,
   password TEXT NOT NULL,
   emergency_fund_password TEXT,
   emergency_fund_lock_until INTEGER,
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS Uploads (
 );
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_users_email ON Users(email);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON Users(phone);
 CREATE INDEX IF NOT EXISTS idx_monthly_budgets_user_id ON MonthlyBudgets(user_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON Expenses(user_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_budget_id ON Expenses(budget_id);

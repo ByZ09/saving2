@@ -9,21 +9,21 @@ const userRepo = new UserRepository();
 passport.use(
   new LocalStrategy(
     {
-      usernameField: 'email',
+      usernameField: 'phone',
       passwordField: 'password',
     },
-    async (email, password, done) => {
+    async (phone, password, done) => {
       try {
-        const user = await userRepo.findByEmail(email);
+        const user = await userRepo.findByPhone(phone);
         
         if (!user) {
-          return done(null, false, { message: 'Invalid email or password' });
+          return done(null, false, { message: 'Invalid phone or password' });
         }
         
         const isValidPassword = await userRepo.verifyPassword(password, user.password);
         
         if (!isValidPassword) {
-          return done(null, false, { message: 'Invalid email or password' });
+          return done(null, false, { message: 'Invalid phone or password' });
         }
         
         const { password: _, ...userWithoutPassword } = user;
@@ -45,7 +45,7 @@ passport.use(
     },
     async (jwtPayload, done) => {
       try {
-        const user = await userRepo.findByEmail(jwtPayload.email);
+        const user = await userRepo.findByPhone(jwtPayload.phone);
         
         if (!user) {
           return done(null, false);

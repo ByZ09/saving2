@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { budgetApi, expenseApi, savingsApi, emergencyFundApi } from '../lib/api';
+import { ReminderSettings } from '../components/custom/ReminderSettings';
+import DataExport from '../components/custom/DataExport';
 import { toast } from 'sonner';
 import { Toaster } from '../components/ui/sonner';
 import OmniflowBadge from '../components/custom/OmniflowBadge';
@@ -86,6 +89,7 @@ const StatCard = ({
 // ─── Main Component ──────────────────────────────────────────────────────────
 const Index = () => {
   const { logout } = useAuth();
+  const routerNavigate = useNavigate();
   const [view, setView] = useState<AppView>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -255,6 +259,10 @@ const Index = () => {
       const res = await expenseApi.create(amount, expCategory, expNote || undefined);
       if (res.success) {
         toast.success(`已记录支出 ${fmtShort(amount)} 🎉`);
+        // 检查是否超预算
+        if (res.data?.exceededBudget) {
+          toast.warning('⚠️ 本月预算已超支，请注意控制支出！');
+        }
         setExpAmount('');
         setExpCategory('');
         setExpNote('');
@@ -579,6 +587,10 @@ const Index = () => {
     const totalIncome = parseFloat(budget.totalIncome);
     const savingsPct = savingsGoalNum > 0 ? Math.min(100, (d.totalSavings / savingsGoalNum) * 100) : 0;
 
+    // 检查超预算状态
+    const todayExceeded = d.todayExpenses > dailyAllowance;
+    const monthExceeded = d.exceededBudget || false;
+
     return (
       <div className="space-y-6">
         {/* Greeting */}
@@ -591,6 +603,15 @@ const Index = () => {
             <p className="text-muted-foreground text-sm mt-1">
               今天是本月第{d.dayOfMonth}天 · {today()}
             </p>
+            {/* 超预算警告 */}
+            {(todayExceeded || monthExceeded) && (
+              <div className="mt-2 inline-flex items-center gap-2 bg-destructive/10 text-destructive px-3 py-1.5 rounded-lg text-sm font-medium">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {todayExceeded ? '今日预算已超支，请注意控制支出！' : '本月预算已超支，请注意控制支出！'}
+              </div>
+            )}
           </div>
           <div className="flex gap-3">
             <button
@@ -1712,6 +1733,30 @@ const Index = () => {
             </div>
           </form>
         )}
+      </div>
+
+      {/* Reminder Settings */}
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+        <h2 className="font-heading font-semibold text-lg text-foreground mb-4">提醒设置</h2>
+        <ReminderSettings />
+      </div>
+
+      {/* Change Password */}
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+        <h2 className="font-heading font-semibold text-lg text-foreground mb-2">修改密码</h2>
+        <p className="text-muted-foreground text-sm mb-4">定期更换密码可以保护账户安全</p>
+        <button
+          onClick={() => { routerNavigate('/change-password'); }}
+          className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:opacity-90 transition-all"
+        >
+          修改密码
+        </button>
+      </div>
+
+      {/* Data Export */}
+      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+        <h2 className="font-heading font-semibold text-lg text-foreground mb-4">数据管理</h2>
+        <DataExport />
       </div>
 
       {/* Logout */}

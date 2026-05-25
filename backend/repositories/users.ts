@@ -24,8 +24,8 @@ export class UserRepository {
     return user;
   }
 
-  async findByEmail(email: string) {
-    const result = await db.select().from(users).where(eq(users.email, email));
+  async findByPhone(phone: string) {
+    const result = await db.select().from(users).where(eq(users.phone, phone));
     const [user] = result;
     return user;
   }
@@ -36,6 +36,21 @@ export class UserRepository {
 
   async verifyPassword(plainPassword: string, hashedPassword: string) {
     return bcrypt.compare(plainPassword, hashedPassword);
+  }
+
+  async updatePassword(userId: string, newPassword: string) {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    await db
+      .update(users)
+      .set({ password: hashedPassword })
+      .where(eq(users.id, userId));
+  }
+
+  async findById(id: string) {
+    const result = await db.select().from(users).where(eq(users.id, id));
+    const [user] = result;
+    return user;
   }
 }
 export const userRepository = new UserRepository();

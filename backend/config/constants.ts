@@ -11,7 +11,7 @@ export const JWT_CONFIG = {
 
 export const AUTH_ERRORS = {
   UNAUTHORIZED: 'Unauthorized - Please login',
-  INVALID_CREDENTIALS: 'Invalid email or password',
-  EMAIL_ALREADY_EXISTS: 'An account with this email already exists',
+  INVALID_CREDENTIALS: 'Invalid phone or password',
+  EMAIL_ALREADY_EXISTS: 'An account with this phone already exists',
   USER_NOT_FOUND: 'User not found',
 } as const;

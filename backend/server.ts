@@ -2,12 +2,15 @@ import 'dotenv/config';
 import express, { ErrorRequestHandler } from 'express';
 import path from 'path';
 import passport from 'passport';
+import cors from 'cors';
 
 import authRoutes from './routes/auth';
 import budgetRoutes from './routes/budgets';
 import expenseRoutes from './routes/expenses';
 import savingsRoutes from './routes/savings';
 import emergencyFundRoutes from './routes/emergencyFund';
+import reminderRoutes from './routes/reminders';
+import exportRoutes from './routes/export';
 
 import { SERVER_CONFIG } from './config/constants';
 import { errorHandler } from './middleware/errorHandler';
@@ -30,6 +33,16 @@ async function startServer() {
    */
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  /**
+   * CORS Configuration
+   */
+  app.use(cors({
+    origin: ['http://localhost:3001', 'http://localhost:5173'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }));
 
   /**
    * Passport
@@ -73,6 +86,8 @@ async function startServer() {
   app.use('/api/expenses', expenseRoutes);
   app.use('/api/savings', savingsRoutes);
   app.use('/api/emergency-fund', emergencyFundRoutes);
+  app.use('/api/reminders', reminderRoutes);
+  app.use('/api/export', exportRoutes);
 
   /**
    * SPA Fallback Route

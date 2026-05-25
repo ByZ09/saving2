@@ -40,20 +40,44 @@ const apiFetch = async <T>(url: string, options?: RequestInit): Promise<ApiRespo
 };
 
 export const authApi = {
-  login: (email: string, password: string) =>
-    apiFetch<{ token: string; user: { id: string; name: string; email: string } }>('/api/auth/login', {
+  login: (phone: string, password: string) =>
+    apiFetch<{ token: string; user: { id: string; name: string; phone: string } }>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ phone, password }),
     }),
 
-  signup: (name: string, email: string, password: string, confirmPassword: string) =>
-    apiFetch<{ token: string; user: { id: string; name: string; email: string } }>('/api/auth/signup', {
+  signup: (name: string, phone: string, password: string, confirmPassword: string) =>
+    apiFetch<{ token: string; user: { id: string; name: string; phone: string } }>('/api/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password, confirmPassword }),
+      body: JSON.stringify({ name, phone, password, confirmPassword }),
     }),
 
   me: () =>
-    apiFetch<{ user: { id: string; name: string; email: string } }>('/api/auth/me'),
+    apiFetch<{ user: { id: string; name: string; phone: string } }>('/api/auth/me'),
+
+  forgotPassword: (phone: string) =>
+    apiFetch<{ message: string; token?: string }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    }),
+
+  verifyResetCode: (token: string, code: string) =>
+    apiFetch<{ message: string; valid: boolean }>('/api/auth/verify-reset-code', {
+      method: 'POST',
+      body: JSON.stringify({ token, code }),
+    }),
+
+  resetPassword: (token: string, code: string, password: string, confirmPassword: string) =>
+    apiFetch<{ message: string }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, code, password, confirmPassword }),
+    }),
+
+  changePassword: (oldPassword: string, newPassword: string, confirmPassword: string) =>
+    apiFetch<{ message: string }>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ oldPassword, newPassword, confirmPassword }),
+    }),
 };
 
 export const budgetApi = {
@@ -76,6 +100,7 @@ export const budgetApi = {
       totalSavings: number;
       categoryBreakdown: CategoryBreakdown[];
       dailyTrend: DailyTrend[];
+      exceededBudget: boolean;
     } | null>(`/api/budgets/${year}/${month}/summary`),
 };
 
@@ -101,6 +126,61 @@ export const savingsApi = {
     apiFetch<SavingsRecord>('/api/savings', {
       method: 'POST',
       body: JSON.stringify({ amount, note }),
+    }),
+};
+
+export const reminderApi = {
+  getSettings: () =>
+    apiFetch<{
+      id: string;
+      userId: string;
+      dailyLimitReminder: number;
+      dailyLimitAmount: number;
+      budgetExceedReminder: number;
+      savingsGoalReminder: number;
+    }>('/api/reminders/settings'),
+
+  updateSettings: (settings: {
+    dailyLimitReminder?: number;
+    dailyLimitAmount?: number;
+    budgetExceedReminder?: number;
+    savingsGoalReminder?: number;
+  }) =>
+    apiFetch<{
+      id: string;
+      userId: string;
+      dailyLimitReminder: number;
+      dailyLimitAmount: number;
+      budgetExceedReminder: number;
+      savingsGoalReminder: number;
+    }>('/api/reminders/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    }),
+
+  getNotifications: () =>
+    apiFetch<{
+      id: string;
+      userId: string;
+      type: string;
+      message: string;
+      read: number;
+      createdAt: number;
+    }[]>('/api/reminders/notifications'),
+
+  markAsRead: (id: string) =>
+    apiFetch<{ message: string }>(`/api/reminders/notifications/${id}/read`, {
+      method: 'PUT',
+    }),
+
+  markAllAsRead: () =>
+    apiFetch<{ message: string }>('/api/reminders/notifications/read-all', {
+      method: 'PUT',
+    }),
+
+  deleteNotification: (id: string) =>
+    apiFetch<{ message: string }>(`/api/reminders/notifications/${id}`, {
+      method: 'DELETE',
     }),
 };
 

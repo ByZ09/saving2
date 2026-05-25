@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Index from './pages/Index';
 import Login from './components/custom/Login';
 import Signup from './components/custom/Signup';
+import ChangePassword from './components/custom/ChangePassword';
 
 const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
@@ -31,6 +32,10 @@ const AppRoutes = () => {
       <Route
         path="/signup"
         element={isAuthenticated ? <Navigate to="/" replace /> : <Signup />}
+      />
+      <Route
+        path="/change-password"
+        element={isAuthenticated ? <ChangePassword /> : <Navigate to="/login" replace />}
       />
       <Route
         path="/"

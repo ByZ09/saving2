@@ -3,7 +3,7 @@ import { reminderSettings, reminderNotifications, insertReminderSettingsSchema, 
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { authenticateJWT, AuthRequest } from '../middleware/auth';
-import crypto from 'crypto';
+import { generateId, getTimestamp } from '../utils';
 const router = Router();
 // 获取提醒设置
 router.get('/settings', authenticateJWT, async (req: Request, res: Response, next: NextFunction) => {
@@ -12,9 +12,8 @@ router.get('/settings', authenticateJWT, async (req: Request, res: Response, nex
  const result = await db.select().from(reminderSettings).where(eq(reminderSettings.userId, user.id));
  const [settings] = result;
  if (!settings) {
- // 如果没有设置，创建默认设置
  const defaultSettings = await db.insert(reminderSettings).values({
- id: crypto.randomUUID(),
+ id: generateId(),
  userId: user.id,
  dailyLimitReminder: 1,
  dailyLimitAmount: 0,
@@ -43,14 +42,13 @@ router.put('/settings', authenticateJWT, async (req: Request, res: Response, nex
  const result = await db.update(reminderSettings)
  .set({
  ...validatedData,
- updatedAt: Math.floor(Date.now() / 1000),
+ updatedAt: getTimestamp(),
  })
  .where(eq(reminderSettings.userId, user.id))
  .returning();
  if (result.length === 0) {
- // 如果没有设置，创建新设置
  const newSettings = await db.insert(reminderSettings).values({
- id: crypto.randomUUID(),
+ id: generateId(),
  userId: user.id,
  dailyLimitReminder: validatedData.dailyLimitReminder ?? 1,
  dailyLimitAmount: validatedData.dailyLimitAmount ?? 0,

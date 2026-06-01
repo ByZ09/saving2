@@ -3,7 +3,7 @@ import { monthlyBudgets, expenses, savingsRecords, insertMonthlyBudgetSchema } f
 import type { InsertMonthlyBudget } from '../db/schema';
 import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import crypto from 'crypto';
+import { generateId, getStartOfDay, getEndOfDay } from '../utils';
 
 type CreateBudgetInput = z.infer<typeof insertMonthlyBudgetSchema>;
 
@@ -35,7 +35,7 @@ export class BudgetRepository {
       .insert(monthlyBudgets)
       .values({
         ...data as InsertMonthlyBudget,
-        id: crypto.randomUUID(),
+        id: generateId(),
       })
       .returning();
     return budget;
@@ -44,7 +44,7 @@ export class BudgetRepository {
   async update(id: string, data: Partial<CreateBudgetInput>) {
     const [budget] = await db
       .update(monthlyBudgets)
-      .set({ ...data as Partial<InsertMonthlyBudget>, updatedAt: Math.floor(Date.now() / 1000) })
+      .set({ ...data as Partial<InsertMonthlyBudget>, updatedAt: getTimestamp() })
       .where(eq(monthlyBudgets.id, id))
       .returning();
     return budget;
@@ -67,19 +67,14 @@ export class BudgetRepository {
   }
 
   async getDailyExpenses(userId: string, date: Date) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
     const result = await db
       .select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
       .from(expenses)
       .where(
         and(
           eq(expenses.userId, userId),
-          gte(expenses.expenseDate, Math.floor(startOfDay.getTime() / 1000)),
-          lte(expenses.expenseDate, Math.floor(endOfDay.getTime() / 1000))
+          gte(expenses.expenseDate, getStartOfDay(date)),
+          lte(expenses.expenseDate, getEndOfDay(date))
         )
       );
     return parseFloat(result[0]?.total || '0');

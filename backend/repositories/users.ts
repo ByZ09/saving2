@@ -4,7 +4,7 @@ import type { InsertUser } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import crypto from 'crypto';
+import { generateId } from '../utils';
 
 type CreateUserInput = z.infer<typeof insertUserSchema>;
 
@@ -16,7 +16,7 @@ export class UserRepository {
       .insert(users)
       .values({
         ...userData,
-        id: crypto.randomUUID(),
+        id: generateId(),
         password: hashedPassword,
       } as InsertUser)
       .returning();

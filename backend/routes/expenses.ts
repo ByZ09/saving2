@@ -7,6 +7,7 @@ import { AppError } from '../middleware/errorHandler';
 import { db } from '../db';
 import { reminderSettings, reminderNotifications } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { generateId, getTimestamp, getEndOfDay } from '../utils';
 
 const router = Router();
 
@@ -54,7 +55,7 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
       amount: expenseAmount.toFixed(2),
       category: category as 'food' | 'shopping' | 'transport' | 'entertainment' | 'study' | 'other',
       note: note || null,
-      expenseDate: Math.floor(now.getTime() / 1000),
+      expenseDate: getTimestamp(),
     });
 
     // 如果超预算且开启了提醒，创建通知
@@ -63,12 +64,12 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
       exceededBudget = true;
       const overBudgetAmount = (monthlyExpenses + expenseAmount - availableBudget).toFixed(2);
       await db.insert(reminderNotifications).values({
-        id: crypto.randomUUID(),
+        id: generateId(),
         userId,
         type: 'budget_exceed',
         message: `本月预算已超支 ¥${overBudgetAmount}，请注意控制支出！`,
         read: 0,
-        createdAt: Math.floor(now.getTime() / 1000),
+        createdAt: getTimestamp(),
       });
     }
 
@@ -84,7 +85,7 @@ router.post('/', authenticateJWT, async (req: AuthRequest, res: Response, next: 
           amount: remaining.toFixed(2),
           type: 'auto',
           note: '今日节省自动存入',
-          recordDate: Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).getTime() / 1000),
+          recordDate: getEndOfDay(now),
         });
       }
     }

@@ -3,7 +3,7 @@ import { savingsRecords, insertSavingsRecordSchema } from '../db/schema';
 import type { InsertSavingsRecord } from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
-import crypto from 'crypto';
+import { generateId } from '../utils';
 
 type CreateSavingsInput = z.infer<typeof insertSavingsRecordSchema>;
 
@@ -13,7 +13,7 @@ export class SavingsRepository {
       .insert(savingsRecords)
       .values({
         ...data as InsertSavingsRecord,
-        id: crypto.randomUUID(),
+        id: generateId(),
       })
       .returning();
     return record;

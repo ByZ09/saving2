@@ -1,23 +1,20 @@
 import { db } from '../db';
 import { passwordResetTokens, users } from '../db/schema';
 import { eq, and, gt } from 'drizzle-orm';
-import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { generateId, getTimestamp } from '../utils';
 
 export class PasswordResetRepository {
   /**
    * 创建密码重置令牌
    */
   async createToken(userId: string): Promise<{ token: string; code: string }> {
-    const token = crypto.randomUUID();
-    // 生成6位数字验证码
+    const token = generateId();
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // 设置过期时间为1小时
-    const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+    const expiresAt = getTimestamp() + 3600;
 
     await db.insert(passwordResetTokens).values({
-      id: crypto.randomUUID(),
+      id: generateId(),
       userId,
       token,
       code,
@@ -43,7 +40,7 @@ export class PasswordResetRepository {
         and(
           eq(passwordResetTokens.token, token),
           eq(passwordResetTokens.used, 0),
-          gt(passwordResetTokens.expiresAt, Math.floor(Date.now() / 1000))
+          gt(passwordResetTokens.expiresAt, getTimestamp())
         )
       );
 
@@ -66,7 +63,7 @@ export class PasswordResetRepository {
           eq(passwordResetTokens.token, token),
           eq(passwordResetTokens.code, code),
           eq(passwordResetTokens.used, 0),
-          gt(passwordResetTokens.expiresAt, Math.floor(Date.now() / 1000))
+          gt(passwordResetTokens.expiresAt, getTimestamp())
         )
       );
 

@@ -108,6 +108,28 @@ const Index = () => {
   const [savingsGoal, setSavingsGoal] = useState('');
   const [budgetLoading, setBudgetLoading] = useState(false);
   const [showBudgetSetup, setShowBudgetSetup] = useState(false);
+  const [useAIPlan, setUseAIPlan] = useState(false);
+  
+  // Daily budget details
+  const [dailyDetails, setDailyDetails] = useState<{
+    day: number;
+    date: string;
+    dayOfWeek: number;
+    dayName: string;
+    dailyAllowance: number;
+    dayExpenses: number;
+    remaining: number;
+    isToday: boolean;
+  }[]>([]);
+  const [dailyDetailsLoading, setDailyDetailsLoading] = useState(false);
+  const [aiPlanResult, setAiPlanResult] = useState<{
+    suggestedSavings: number;
+    monthlyBudget: number;
+    dailyBudget: number;
+    summary: string;
+    advice: string;
+    suggestions: { dayName: string; suggestedAmount: number; reason: string }[];
+  } | null>(null);
 
   // History
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -185,9 +207,26 @@ const Index = () => {
     }
   }, []);
 
+  // ── Load daily budget details ──
+  const loadDailyDetails = useCallback(async (year: number, month: number) => {
+    setDailyDetailsLoading(true);
+    try {
+      const res = await budgetApi.getDailyDetails(year, month);
+      if (res.success && res.data) {
+        setDailyDetails(res.data.dailyDetails);
+      }
+    } catch {
+      toast.error('加载每日预算明细失败');
+    } finally {
+      setDailyDetailsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadDashboard();
-  }, [loadDashboard]);
+    const now = new Date();
+    loadDailyDetails(now.getFullYear(), now.getMonth() + 1);
+  }, [loadDashboard, loadDailyDetails]);
 
   // ── Load history ──
   const loadHistory = useCallback(async () => {
@@ -291,6 +330,64 @@ const Index = () => {
       if (res.success) {
         toast.success('预算设置成功！');
         setShowBudgetSetup(false);
+        setAiPlanResult(null);
+        setUseAIPlan(false);
+        await loadDashboard();
+      } else {
+        toast.error(res.message || '设置失败');
+      }
+    } catch {
+      toast.error('设置失败，请重试');
+    } finally {
+      setBudgetLoading(false);
+    }
+  };
+
+  // ── AI智能预算规划 ──
+  const handleAIPlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const inc = parseFloat(income);
+    if (isNaN(inc) || inc <= 0) { toast.error('请输入有效收入'); return; }
+    setBudgetLoading(true);
+    try {
+      const res = await budgetApi.aiPlan(inc);
+      if (res.success) {
+        const plan = res.data.aiPlan;
+        setAiPlanResult({
+          suggestedSavings: plan.suggestedSavings,
+          monthlyBudget: plan.monthlyBudget,
+          dailyBudget: plan.dailyBudget,
+          summary: plan.summary,
+          advice: plan.advice,
+          suggestions: plan.suggestions,
+        });
+        setUseAIPlan(true);
+        toast.success('🤖 豆包AI已为您制定预算计划！');
+      } else {
+        toast.error(res.message || 'AI规划失败');
+      }
+    } catch (error) {
+      console.error('AI规划错误:', error);
+      toast.error('AI服务暂时不可用，请稍后重试');
+    } finally {
+      setBudgetLoading(false);
+    }
+  };
+
+  // ── 使用AI规划的预算 ──
+  const handleUseAIPlan = async () => {
+    if (!aiPlanResult) return;
+    setBudgetLoading(true);
+    try {
+      const res = await budgetApi.createOrUpdate(
+        parseFloat(income),
+        aiPlanResult.suggestedSavings
+      );
+      if (res.success) {
+        toast.success('🤖 AI预算已应用成功！');
+        setShowBudgetSetup(false);
+        setAiPlanResult(null);
+        setUseAIPlan(false);
         await loadDashboard();
       } else {
         toast.error(res.message || '设置失败');
@@ -524,10 +621,70 @@ const Index = () => {
               </div>
               <h2 className="font-heading font-bold text-2xl text-foreground">设置本月预算</h2>
               <p className="text-muted-foreground text-sm mt-2">
-                {new Date().getFullYear()}年{new Date().getMonth() + 1}月 · 输入收入和存钱目标，系统自动计算每日额度
+                {new Date().getFullYear()}年{new Date().getMonth() + 1}月 · 输入收入，Kimi AI为您智能分配
               </p>
             </div>
-            <form onSubmit={handleBudgetSubmit} className="space-y-5">
+            
+            {/* AI规划结果展示 */}
+            {aiPlanResult && (
+              <div className="mb-6 bg-gradient-to-r from-[oklch(0.95_0.02_180)] to-[oklch(0.95_0.02_220)] border border-primary/20 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl">🤖</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground">Kimi AI预算规划</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{aiPlanResult.summary}</p>
+                    <div className="grid grid-cols-3 gap-3 mt-3">
+                      <div className="bg-white rounded-lg p-2 text-center">
+                        <p className="text-xs text-muted-foreground">建议储蓄</p>
+                        <p className="font-bold text-primary">{fmtShort(aiPlanResult.suggestedSavings)}</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-2 text-center">
+                        <p className="text-xs text-muted-foreground">月度预算</p>
+                        <p className="font-bold text-secondary">{fmtShort(aiPlanResult.monthlyBudget)}</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-2 text-center">
+                        <p className="text-xs text-muted-foreground">日均预算</p>
+                        <p className="font-bold text-accent">{fmtShort(aiPlanResult.dailyBudget)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 bg-white/50 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-2">📝 理财建议</p>
+                      <p className="text-sm text-foreground">{aiPlanResult.advice}</p>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-xs text-muted-foreground mb-2">📅 每日预算分配</p>
+                      <div className="grid grid-cols-7 gap-1">
+                        {aiPlanResult.suggestions.map((s, idx) => (
+                          <div key={idx} className="text-center bg-white rounded p-1">
+                            <p className="text-xs text-muted-foreground">{s.dayName}</p>
+                            <p className="text-xs font-semibold">{fmtShort(s.suggestedAmount)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={handleUseAIPlan}
+                        disabled={budgetLoading}
+                        className="flex-1 bg-primary text-primary-foreground py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-all disabled:opacity-60"
+                      >
+                        {budgetLoading ? '应用中...' : '✓ 应用AI预算'}
+                      </button>
+                      <button
+                        onClick={() => { setAiPlanResult(null); setUseAIPlan(false); }}
+                        className="px-4 py-2 bg-background border border-border text-muted-foreground rounded-lg font-medium text-sm hover:border-primary transition-all"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <form className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">本月总收入 (元)</label>
                 <div className="relative">
@@ -542,21 +699,25 @@ const Index = () => {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">本月存钱目标 (元)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">¥</span>
-                  <input
-                    type="number"
-                    value={savingsGoal}
-                    onChange={(e) => setSavingsGoal(e.target.value)}
-                    placeholder="500"
-                    min="0"
-                    className="w-full pl-8 pr-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 font-mono"
-                  />
+              
+              {!useAIPlan && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">本月存钱目标 (元)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">¥</span>
+                    <input
+                      type="number"
+                      value={savingsGoal}
+                      onChange={(e) => setSavingsGoal(e.target.value)}
+                      placeholder="500"
+                      min="0"
+                      className="w-full pl-8 pr-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 font-mono"
+                    />
+                  </div>
                 </div>
-              </div>
-              {income && savingsGoal && parseFloat(income) > parseFloat(savingsGoal) && (
+              )}
+              
+              {!useAIPlan && income && savingsGoal && parseFloat(income) > parseFloat(savingsGoal) && (
                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
                   <p className="text-sm text-foreground">
                     <span className="font-semibold text-primary">每日可用额度：</span>
@@ -567,13 +728,31 @@ const Index = () => {
                   </p>
                 </div>
               )}
-              <button
-                type="submit"
-                disabled={budgetLoading}
-                className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 shadow-md disabled:opacity-60 disabled:translate-y-0"
-              >
-                {budgetLoading ? '设置中...' : '开始存钱 🚀'}
-              </button>
+              
+              <div className="flex gap-3">
+                {!aiPlanResult && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleAIPlan}
+                      disabled={budgetLoading || !income}
+                      className="flex-1 bg-gradient-to-r from-[oklch(0.65_0.14_280)] to-[oklch(0.65_0.18_220)] text-white py-3 rounded-xl font-semibold hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 shadow-md disabled:opacity-60 disabled:translate-y-0 flex items-center justify-center gap-2"
+                    >
+                      {budgetLoading ? 'AI思考中...' : '🤖 让Kimi AI规划'}
+                    </button>
+                    {!useAIPlan && (
+                      <button
+                        type="submit"
+                        onClick={handleBudgetSubmit}
+                        disabled={budgetLoading || !income || !savingsGoal}
+                        className="flex-1 bg-primary text-primary-foreground py-3 rounded-xl font-semibold hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 shadow-md disabled:opacity-60 disabled:translate-y-0"
+                      >
+                        {budgetLoading ? '设置中...' : '手动设置'}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </form>
           </div>
         </div>
@@ -582,7 +761,7 @@ const Index = () => {
 
     const d = dashData;
     const budget = d.budget;
-    const dailyAllowance = parseFloat(budget.dailyAllowance);
+    const dailyAllowance = d.dailyAllowance; // 使用后端智能计算的每日预算
     const savingsGoalNum = parseFloat(budget.savingsGoal);
     const totalIncome = parseFloat(budget.totalIncome);
     const savingsPct = savingsGoalNum > 0 ? Math.min(100, (d.totalSavings / savingsGoalNum) * 100) : 0;
@@ -640,7 +819,7 @@ const Index = () => {
           <StatCard
             label="今日可用额度"
             value={fmtShort(d.todayRemaining)}
-            sub={`已花费 ${fmtShort(d.todayExpenses)} · 额度 ${fmtShort(dailyAllowance)}`}
+            sub={`已花费 ${fmtShort(d.todayExpenses)} · 额度 ${fmtShort(dailyAllowance)} ${d.smartAllocation ? '🤖 AI智能分配' : ''}`}
             progress={d.todayExpenses}
             progressMax={dailyAllowance}
             gradient
@@ -1055,6 +1234,75 @@ const Index = () => {
             </form>
           </div>
         </div>
+
+        {/* Daily Budget Details */}
+        {dailyDetails.length > 0 && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="font-heading font-semibold text-lg text-foreground">📅 本月每日预算明细</h2>
+                <p className="text-muted-foreground text-sm">每日可用额度与实际支出</p>
+              </div>
+              <div className="flex gap-4 text-xs">
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-primary" />可用额度
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-destructive" />已支出
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-green-500" />剩余
+                </span>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-2 font-medium text-muted-foreground">日期</th>
+                    <th className="text-left py-2 px-2 font-medium text-muted-foreground">星期</th>
+                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">可用额度</th>
+                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">已支出</th>
+                    <th className="text-right py-2 px-2 font-medium text-muted-foreground">剩余</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailyDetails.map((item) => (
+                    <tr
+                      key={item.day}
+                      className={`border-b border-border last:border-0 transition-colors ${
+                        item.isToday ? 'bg-primary/5' : 'hover:bg-muted/30'
+                      }`}
+                    >
+                      <td className={`py-3 px-2 font-medium ${
+                        item.isToday ? 'text-primary font-semibold' : 'text-foreground'
+                      }`}>
+                        {item.day}日
+                        {item.isToday && <span className="ml-2 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">今天</span>}
+                      </td>
+                      <td className="py-3 px-2 text-muted-foreground">
+                        {item.dayName}
+                      </td>
+                      <td className="py-3 px-2 text-right font-mono">
+                        {item.dailyAllowance.toFixed(2)}
+                      </td>
+                      <td className={`py-3 px-2 text-right font-mono ${
+                        item.dayExpenses > 0 ? 'text-destructive' : 'text-muted-foreground'
+                      }`}>
+                        {item.dayExpenses.toFixed(2)}
+                      </td>
+                      <td className={`py-3 px-2 text-right font-mono font-semibold ${
+                        item.remaining < 0 ? 'text-destructive' : 'text-green-600'
+                      }`}>
+                        {item.remaining.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

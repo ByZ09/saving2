@@ -11,6 +11,22 @@ import type {
   DailyTrend,
 } from '../types';
 
+interface AIBudgetPlan {
+  totalIncome: number;
+  suggestedSavings: number;
+  suggestedSavingsRate: number;
+  monthlyBudget: number;
+  dailyBudget: number;
+  suggestions: {
+    dayOfWeek: number;
+    dayName: string;
+    suggestedAmount: number;
+    reason: string;
+  }[];
+  summary: string;
+  advice: string;
+}
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
   return {
@@ -20,9 +36,9 @@ const getAuthHeaders = () => {
 };
 
 const apiFetch = async <T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> => {
-  console.log('API请求:', `${API_BASE_URL}${url}`, options);
+  console.log('API请求:', url, options);
   try {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const response = await fetch(url, {
       ...options,
       headers: {
         ...getAuthHeaders(),
@@ -93,6 +109,13 @@ export const budgetApi = {
       body: JSON.stringify({ totalIncome, savingsGoal, year, month }),
     }),
 
+  // AI智能预算规划
+  aiPlan: (totalIncome: number, year?: number, month?: number) =>
+    apiFetch<{ budget: MonthlyBudget; aiPlan: AIBudgetPlan }>('/api/budgets/ai-plan', {
+      method: 'POST',
+      body: JSON.stringify({ totalIncome, year, month }),
+    }),
+
   getMonthlySummary: (year: number, month: number) =>
     apiFetch<{
       budget: MonthlyBudget;
@@ -102,6 +125,23 @@ export const budgetApi = {
       dailyTrend: DailyTrend[];
       exceededBudget: boolean;
     } | null>(`/api/budgets/${year}/${month}/summary`),
+
+  getDailyDetails: (year: number, month: number) =>
+    apiFetch<{
+      budget: MonthlyBudget;
+      dailyDetails: {
+        day: number;
+        date: string;
+        dayOfWeek: number;
+        dayName: string;
+        dailyAllowance: number;
+        dayExpenses: number;
+        remaining: number;
+        isToday: boolean;
+      }[];
+      totalExpenses: number;
+      availableBudget: number;
+    } | null>(`/api/budgets/${year}/${month}/daily-details`),
 };
 
 export const expenseApi = {
@@ -218,3 +258,5 @@ export const emergencyFundApi = {
       body: JSON.stringify({ targetAmount }),
     }),
 };
+
+export type { AIBudgetPlan };

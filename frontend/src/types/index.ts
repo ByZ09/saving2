@@ -77,10 +77,12 @@ export interface DashboardData {
   totalSavings: number;
   todayExpenses: number;
   todayRemaining: number;
+  dailyAllowance: number;
   categoryBreakdown: CategoryBreakdown[];
   dailyTrend: DailyTrend[];
   daysInMonth: number;
   dayOfMonth: number;
+  smartAllocation: boolean;
 }
 
 export interface ApiResponse<T> {
